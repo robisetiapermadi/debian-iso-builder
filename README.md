@@ -20,24 +20,28 @@ podman build -t debian-iso-builder .
 
 ```bash
 mkdir -p output
-podman run --rm -v "$(pwd)/output:/output" debian-iso-builder
+podman run --rm -v "$(pwd)/output:/output:Z" debian-iso-builder
 ```
 
 ### Build versi tertentu
 
 ```bash
-podman run --rm -v "$(pwd)/output:/output" debian-iso-builder bookworm
-podman run --rm -v "$(pwd)/output:/output" debian-iso-builder buster bullseye
+podman run --rm -v "$(pwd)/output:/output:Z" debian-iso-builder bookworm
+podman run --rm -v "$(pwd)/output:/output:Z" debian-iso-builder buster bullseye
 ```
 
 ### Custom mirror / firmware
 
 ```bash
-podman run --rm -v "$(pwd)/output:/output" \
+podman run --rm -v "$(pwd)/output:/output:Z" \
   -e MIRROR=http://my-mirror/debian \
   -e FIRMWARE_URL=https://my-mirror/firmware-bnx2x.deb \
   debian-iso-builder bookworm
 ```
+
+> **Note:** `:Z` pada volume mount diperlukan jika SELinux dalam mode Enforcing
+> (default di RHEL/Rocky/AlmaLinux). Tanpa `:Z`, container tidak dapat menulis
+> ke direktori output. Jika SELinux disabled/permissive, `:Z` tidak diperlukan.
 
 ## Output
 

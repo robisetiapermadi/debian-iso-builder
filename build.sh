@@ -128,9 +128,16 @@ build_iso() {
     echo "        initrd at: /${initrd_rel}"
 
     # 4. Unpack initrd
+    # --no-preserve-owner avoids mknod permission errors in rootless containers
     echo -n "  [4/7] Unpack initrd.gz... "
     mkdir -p "${workdir}/initrd_unpacked"
-    (cd "${workdir}/initrd_unpacked" && zcat "${initrd_path}" | cpio -idm --quiet)
+    (cd "${workdir}/initrd_unpacked" && \
+     zcat "${initrd_path}" | cpio -idm --no-preserve-owner --quiet 2>/dev/null || true)
+    if [ ! -f "${workdir}/initrd_unpacked/lib" ] && [ ! -d "${workdir}/initrd_unpacked/bin" ]; then
+        echo "FAIL (initrd unpack produced no content)"
+        rm -rf "$workdir"
+        return 1
+    fi
     echo "OK"
 
     # 5. Inject firmware
@@ -153,23 +160,39 @@ build_iso() {
     echo "OK (${fw_count} bnx2x firmware files)"
 
     # 6. Repack initrd
+    # --owner=0:0 --group=0:0 sets root ownership explicitly (needed in rootless)
     echo -n "  [6/7] Repack initrd.gz... "
     (cd "${workdir}/initrd_unpacked" && \
-     find . -print0 | cpio -0 -H newc -o --quiet 2>/dev/null | \
+     find . -print0 | cpio -0 -H newc -o --owner=0:0 --quiet 2>/dev/null | \
      gzip -c > "${workdir}/new_initrd.gz")
+    if [ ! -s "${workdir}/new_initrd.gz" ]; then
+        echo "FAIL (repacked initrd is empty)"
+        rm -rf "$workdir"
+        return 1
+    fi
     echo "OK ($(du -h "${workdir}/new_initrd.gz" | cut -f1))"
 
     # 7. Build custom ISO (preserve boot config, replace initrd)
+    # Write to container-local temp first, then copy to output volume
+    # (avoids permission/SELinux issues with bind-mounted volumes in rootless Podman)
     echo -n "  [7/7] Build custom ISO... "
+    local tmp_iso="${workdir}/${custom_name}"
     xorriso \
         -indev "${workdir}/mini.iso" \
-        -outdev "${OUTPUT_DIR}/${custom_name}" \
+        -outdev "${tmp_iso}" \
         -boot_image any keep \
         -map "${workdir}/new_initrd.gz" "/${initrd_rel}" \
         >/dev/null 2>&1
 
-    if [ -f "${OUTPUT_DIR}/${custom_name}" ]; then
-        echo "OK ($(du -h "${OUTPUT_DIR}/${custom_name}" | cut -f1))"
+    if [ -s "${tmp_iso}" ]; then
+        cp "${tmp_iso}" "${OUTPUT_DIR}/${custom_name}" 2>/dev/null
+        if [ -f "${OUTPUT_DIR}/${custom_name}" ]; then
+            echo "OK ($(du -h "${OUTPUT_DIR}/${custom_name}" | cut -f1))"
+        else
+            echo "FAIL (could not copy ISO to output volume)"
+            rm -rf "$workdir"
+            return 1
+        fi
     else
         echo "FAIL (xorriso repack failed)"
         rm -rf "$workdir"
