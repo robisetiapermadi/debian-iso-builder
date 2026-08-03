@@ -49,9 +49,9 @@ podman run --rm -v "$(pwd)/output:/output:Z" \
 Custom ISO tersimpan di `output/` directory:
 
 ```
-debian-buster-firmware-custom.iso
-debian-bullseye-firmware-custom.iso
-debian-bookworm-firmware-custom.iso
+debian-10-custom-YYYYMM.iso
+debian-11-custom-YYYYMM.iso
+debian-12-custom-YYYYMM.iso
 ```
 
 ## Environment variables

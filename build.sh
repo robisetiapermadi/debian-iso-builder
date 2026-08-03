@@ -14,6 +14,11 @@ FIRMWARE_DIR_URL="${MIRROR}/pool/non-free-firmware/f/firmware-nonfree"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 
 VALID_VERSIONS="buster bullseye bookworm"
+declare -A CODENAME_TO_VERSION=(
+    [buster]=10
+    [bullseye]=11
+    [bookworm]=12
+)
 FIRMWARE_PACKAGES=(
     firmware-bnx2x
     firmware-qlogic
@@ -70,7 +75,10 @@ build_iso() {
     local codename="$1"
     local iso_url="${MIRROR}/dists/${codename}/main/installer-amd64/current/images/netboot/mini.iso"
     local archive_iso_url="${ARCHIVE_MIRROR}/dists/${codename}/main/installer-amd64/current/images/netboot/mini.iso"
-    local custom_name="debian-${codename}-firmware-custom.iso"
+    local ver="${CODENAME_TO_VERSION[$codename]}"
+    local stamp
+    stamp=$(date +%Y%m)
+    local custom_name="debian-${ver}-custom-${stamp}.iso"
 
     echo
     echo "=========================================="
