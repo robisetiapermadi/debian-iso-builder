@@ -1,7 +1,8 @@
-# Debian mini.iso Builder (bnx2x firmware)
+# Debian mini.iso Builder (multiple firmware)
 
-Membangun custom Debian netboot mini.iso dengan firmware bnx2x di-inject
-ke dalam initrd. Berjalan di dalam Podman/Docker container — tidak perlu Debian server.
+Membangun custom Debian netboot mini.iso dengan multiple firmware
+(bnx2x + qlogic) di-inject ke dalam initrd. Berjalan di dalam Podman/Docker container
+— tidak perlu Debian server.
 
 ## Prasyarat
 
@@ -48,9 +49,9 @@ podman run --rm -v "$(pwd)/output:/output:Z" \
 Custom ISO tersimpan di `output/` directory:
 
 ```
-debian-buster-bnx2x-custom.iso
-debian-bullseye-bnx2x-custom.iso
-debian-bookworm-bnx2x-custom.iso
+debian-buster-firmware-custom.iso
+debian-bullseye-firmware-custom.iso
+debian-bookworm-firmware-custom.iso
 ```
 
 ## Environment variables
@@ -59,15 +60,15 @@ debian-bookworm-bnx2x-custom.iso
 |------------------|-------------------------------------------------------------------------|
 | `MIRROR`         | `http://mirror.biznetgio.com/debian`                                   |
 | `ARCHIVE_MIRROR` | `http://archive.debian.org/debian` (untuk EOL releases seperti buster) |
-| `FIRMWARE_URL`   | auto-detect latest dari mirror                                          |
+| `FIRMWARE_URL`   | Pin specific firmware-bnx2x .deb URL (default: auto-detect latest)     |
 | `OUTPUT_DIR`     | `/output`                                                              |
 
 ## Yang dilakukan container
 
 1. Download mini.iso dari mirror (fallback ke archive untuk EOL releases)
-2. Download firmware-bnx2x .deb (auto-detect versi terbaru)
+2. Download firmware packages (firmware-bnx2x + firmware-qlogic, auto-detect versi terbaru)
 3. Extract initrd.gz dari ISO (via xorriso, tanpa mount)
-4. Unpack initrd (zcat + cpio)
-5. Inject firmware bnx2x ke initrd (dpkg-deb -x, dengan path fix)
+4. Unpack initrd (zcat + cpio, --no-preserve-owner untuk rootless)
+5. Inject firmware ke initrd (dpkg-deb -x, dengan path fix usr→lib)
 6. Repack initrd (cpio + gzip)
 7. Rebuild ISO dengan initrd baru (xorriso, preserve boot config)
